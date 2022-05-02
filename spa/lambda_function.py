@@ -355,13 +355,8 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                         "build": {
                             "commands": [
                                 "mkdir -p dist",
-                                "ng version",
-                                "echo $BUILD_ENV",
                                 "npm install",
                                 "ng build --configuration $BUILD_ENV --build-optimizer --output-path=dist",
-                                # "ng build --configuration=$BUILD_ENV --build-optimizer",
-                                # "ng build --configuration $BUILD_ENV",
-                                # "ng build --configuration=$BUILD_ENV"
                             ]
                         },
                         "post_build": {
@@ -391,8 +386,7 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                 "type": "LINUX_CONTAINER",
                 "image": "aws/codebuild/amazonlinux2-x86_64-standard:3.0",
                 "computeType": build_container_size,
-                "imagePullCredentialsType": "CODEBUILD",
-                # "environmentVariables": [ {"name": var_set[0], "value": var_set[1], "type": "PLAINTEXT"} for var_set in codebuild_environment_variables.items()] if codebuild_environment_variables else None
+                "imagePullCredentialsType": "CODEBUILD"
             }),
             "serviceRole": role_arn
         }
