@@ -341,9 +341,9 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                 "location": f"{bucket}/{object_name}",
                 "buildspec": json.dumps({
                     "version": 0.2,
-                    "env": {
-                        "variables": { "NO_ENV_VARIABLES": "SET" }
-                    },
+                    # "env": {
+                    #     "variables": { "NO_ENV_VARIABLES": "SET" }
+                    # },
                     "phases": remove_none_attributes({
                         "install": remove_none_attributes({
                             "runtime-versions": codebuild_runtime_versions,
