@@ -355,7 +355,7 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                         "build": {
                             "commands": [
                                 "mkdir -p dist",
-                                "ng build --configuration=$BUILD_ENV --build-optimizer"
+                                "ng build --configuration $BUILD_ENV --build-optimizer"
                             ]
                         },
                         "post_build": {
