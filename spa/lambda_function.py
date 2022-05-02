@@ -32,7 +32,7 @@ def lambda_handler(event, context):
         cname = event.get("component_name")
         role_arn = lambda_env("codebuild_role_arn")
         codebuild_project_name = cdef.get("codebuild_project_name") or component_safe_name(project_code, repo_id, cname)
-        codebuild_runtime_versions = cdef.get("codebuild_runtime_versions") or {"nodejs": 10} # assume dictionary with this format
+        codebuild_runtime_versions = cdef.get("codebuild_runtime_versions") or {"nodejs": 12} # assume dictionary with this format
         codebuild_install_commands = cdef.get("codebuild_install_commands") or ["npm install -g @angular/cli"]
         codebuild_environment_variables = {**{"BUILD_ENV": "production"}, **cdef.get("codebuild_environment_variables", {})} if cdef.get("codebuild_environment_variables") else {"BUILD_ENV": "production"}
         if (event.get("op") == "upsert") and not object_name:
@@ -358,9 +358,9 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                                 "ng version",
                                 "echo $BUILD_ENV",
                                 "ng build --configuration $BUILD_ENV --build-optimizer",
-                                "ng build --configuration=$BUILD_ENV --build-optimizer",
-                                "ng build --configuration $BUILD_ENV",
-                                "ng build --configuration=$BUILD_ENV"
+                                # "ng build --configuration=$BUILD_ENV --build-optimizer",
+                                # "ng build --configuration $BUILD_ENV",
+                                # "ng build --configuration=$BUILD_ENV"
                             ]
                         },
                         "post_build": {
