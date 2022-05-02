@@ -13,8 +13,8 @@ from extutil import remove_none_attributes, account_context, ExtensionHandler, e
     handle_common_errors
 
 eh = ExtensionHandler()
-SUCCESS_FILE = "reactspapresets/success.json"
-ERROR_FILE = "reactspapresets/error.json"
+SUCCESS_FILE = "angularspapresets/success.json"
+ERROR_FILE = "angularspapresets/error.json"
 
 def lambda_handler(event, context):
     try:
@@ -33,7 +33,8 @@ def lambda_handler(event, context):
         role_arn = lambda_env("codebuild_role_arn")
         codebuild_project_name = cdef.get("codebuild_project_name") or component_safe_name(project_code, repo_id, cname)
         codebuild_runtime_versions = cdef.get("codebuild_runtime_versions") or {"nodejs": 10} # assume dictionary with this format
-        install_commands = cdef.get("install_commands") or None
+        codebuild_install_commands = cdef.get("codebuild_install_commands") or ["npm install -g @angular/cli"]
+        codebuild_environment_variables = {**{"BUILD_ENV": "production"}, **cdef.get("codebuild_environment_variables", {})} if cdef.get("codebuild_environment_variables") else {"BUILD_ENV": "production"}
         if (event.get("op") == "upsert") and not object_name:
             eh.add_log(f"No files found", {"cname": cname}, True)
             eh.perm_error(f"No files found in the folder {cname} in repo {repo_id}. Please add a UI to the folder", 0)
@@ -75,7 +76,7 @@ def lambda_handler(event, context):
         add_config(bucket, object_name, cdef.get("config"))
         # put_object(bucket, object_name, s3_build_object_name)
         setup_s3(cname, cdef, domain, index_document, error_document)
-        setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_path, build_container_size, role_arn, prev_state, cname, repo_id, codebuild_runtime_versions, install_commands)
+        setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_path, build_container_size, role_arn, prev_state, cname, repo_id, codebuild_runtime_versions, codebuild_install_commands, codebuild_environment_variables)
         start_build(codebuild_project_name)
         check_build_complete(bucket)
         set_object_metadata(cdef, s3_url_path, index_document, error_document, region, domain)
@@ -294,7 +295,7 @@ def setup_status_objects(bucket):
 
 
 @ext(handler=eh, op="setup_codebuild_project")
-def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_path, build_container_size, role_arn, prev_state, component_name, repo_id, codebuild_runtime_versions, install_commands):
+def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_path, build_container_size, role_arn, prev_state, component_name, repo_id, codebuild_runtime_versions, codebuild_install_commands, codebuild_environment_variables):
     codebuild = boto3.client('codebuild')
     destination_bucket = eh.props['S3']['name']
     pre_build_commands = []
@@ -341,23 +342,20 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                 "buildspec": json.dumps({
                     "version": 0.2,
                     "env": {
-                        "variables": {
-                            "THIS_BUILD_KEY": "whocares"
-                        }
+                        "variables": remove_none_attributes(codebuild_environment_variables or None) or { "NO_ENV_VARIABLES": "SET" }
                     },
                     "phases": remove_none_attributes({
                         "install": remove_none_attributes({
                             "runtime-versions": codebuild_runtime_versions,
-                            "commands": install_commands or None
+                            "commands": codebuild_install_commands or None
                         }) or None,
                         "pre_build": remove_none_attributes({
                             "commands": pre_build_commands or None
                         }) or None,
                         "build": {
                             "commands": [
-                                "mkdir -p build",
-                                "npm install",
-                                "npm run build"
+                                "mkdir -p dist",
+                                "ng build --configuration=$BUILD_ENV --build-optimizer"
                             ]
                         },
                         "post_build": {
@@ -370,7 +368,7 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                         "files": [
                             "**/*"
                         ],
-                        "base-directory": "build"
+                        "base-directory": "dist"
                     }
                 }, sort_keys=True)
             },
@@ -466,7 +464,7 @@ def remove_codebuild_project():
 @ext(handler=eh, op="start_build")
 def start_build(codebuild_project_name):
     codebuild = boto3.client('codebuild')
-    this_build_key = f"reactspabuilds/{random_id()}.json"
+    this_build_key = f"angularspabuilds/{random_id()}.json"
 
     try:
         response = codebuild.start_build(
