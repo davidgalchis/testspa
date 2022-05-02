@@ -342,7 +342,7 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                 "buildspec": json.dumps({
                     "version": 0.2,
                     "env": {
-                        "variables": { var_set[0]: f'\"${var_set[1]}\"' for var_set in codebuild_environment_variables.items()} if codebuild_environment_variables else {"NO_VARIABLES": "SET"}
+                        "variables": { var_set[0]: var_set[1] for var_set in codebuild_environment_variables.items()} if codebuild_environment_variables else {"NO_VARIABLES": "SET"}
                     },
                     "phases": remove_none_attributes({
                         "install": remove_none_attributes({
