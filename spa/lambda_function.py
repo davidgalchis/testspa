@@ -342,7 +342,7 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                 "buildspec": json.dumps({
                     "version": 0.2,
                     "env": {
-                        "variables": remove_none_attributes(codebuild_environment_variables or None) or { "NO_ENV_VARIABLES": "SET" }
+                        "variables": { "NO_ENV_VARIABLES": "SET" }
                     },
                     "phases": remove_none_attributes({
                         "install": remove_none_attributes({
@@ -381,12 +381,13 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                 "packaging": "NONE",
                 "encryptionDisabled": True
             },
-            "environment": {
+            "environment": remove_none_attributes({
                 "type": "LINUX_CONTAINER",
                 "image": "aws/codebuild/amazonlinux2-x86_64-standard:3.0",
                 "computeType": build_container_size,
-                "imagePullCredentialsType": "CODEBUILD"
-            },
+                "imagePullCredentialsType": "CODEBUILD",
+                "environmentVariables": codebuild_environment_variables or None
+            }),
             "serviceRole": role_arn
         }
         print(f"params = {params}")
