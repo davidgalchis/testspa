@@ -386,7 +386,7 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                 "image": "aws/codebuild/amazonlinux2-x86_64-standard:3.0",
                 "computeType": build_container_size,
                 "imagePullCredentialsType": "CODEBUILD",
-                "environmentVariables": codebuild_environment_variables or None
+                "environmentVariables": [ {"name": var_set[0], "value": var_set[1], "type": "PLAINTEXT"} for var_set in codebuild_environment_variables.items()] if codebuild_environment_variables else None
             }),
             "serviceRole": role_arn
         }
