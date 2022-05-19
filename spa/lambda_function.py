@@ -13,8 +13,8 @@ from extutil import remove_none_attributes, account_context, ExtensionHandler, e
     handle_common_errors
 
 eh = ExtensionHandler()
-SUCCESS_FILE = "angularspapresets/success.json"
-ERROR_FILE = "angularspapresets/error.json"
+SUCCESS_FILE = "reactspapresets/success.json"
+ERROR_FILE = "reactspapresets/error.json"
 
 def lambda_handler(event, context):
     try:
@@ -32,9 +32,8 @@ def lambda_handler(event, context):
         cname = event.get("component_name")
         role_arn = lambda_env("codebuild_role_arn")
         codebuild_project_name = cdef.get("codebuild_project_name") or component_safe_name(project_code, repo_id, cname)
-        codebuild_runtime_versions = cdef.get("codebuild_runtime_versions") or {"nodejs": 12} # assume dictionary with this format
-        codebuild_install_commands = cdef.get("codebuild_install_commands") or ["npm install -g @angular/cli"]
-        codebuild_environment_variables = {**{"BUILD_ENV": "production"}, **cdef.get("codebuild_environment_variables", {})} if cdef.get("codebuild_environment_variables") else {"BUILD_ENV": "production"}
+        codebuild_runtime_versions = cdef.get("codebuild_runtime_versions") or {"nodejs": 10} # assume dictionary with this format
+        codebuild_install_commands = cdef.get("codebuild_install_commands") or None
         if (event.get("op") == "upsert") and not object_name:
             eh.add_log(f"No files found", {"cname": cname}, True)
             eh.perm_error(f"No files found in the folder {cname} in repo {repo_id}. Please add a UI to the folder", 0)
@@ -76,7 +75,7 @@ def lambda_handler(event, context):
         add_config(bucket, object_name, cdef.get("config"))
         # put_object(bucket, object_name, s3_build_object_name)
         setup_s3(cname, cdef, domain, index_document, error_document)
-        setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_path, build_container_size, role_arn, prev_state, cname, repo_id, codebuild_runtime_versions, codebuild_install_commands, codebuild_environment_variables)
+        setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_path, build_container_size, role_arn, prev_state, cname, repo_id, codebuild_runtime_versions, codebuild_install_commands)
         start_build(codebuild_project_name)
         check_build_complete(bucket)
         set_object_metadata(cdef, s3_url_path, index_document, error_document, region, domain)
@@ -295,7 +294,7 @@ def setup_status_objects(bucket):
 
 
 @ext(handler=eh, op="setup_codebuild_project")
-def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_path, build_container_size, role_arn, prev_state, component_name, repo_id, codebuild_runtime_versions, codebuild_install_commands, codebuild_environment_variables):
+def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_path, build_container_size, role_arn, prev_state, component_name, repo_id, codebuild_runtime_versions, codebuild_install_commands):
     codebuild = boto3.client('codebuild')
     destination_bucket = eh.props['S3']['name']
     pre_build_commands = []
@@ -342,7 +341,9 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                 "buildspec": json.dumps({
                     "version": 0.2,
                     "env": {
-                        "variables": { var_set[0]: var_set[1] for var_set in codebuild_environment_variables.items()} if codebuild_environment_variables else {"NO_VARIABLES": "SET"}
+                        "variables": {
+                            "THIS_BUILD_KEY": "whocares"
+                        }
                     },
                     "phases": remove_none_attributes({
                         "install": remove_none_attributes({
@@ -354,9 +355,9 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                         }) or None,
                         "build": {
                             "commands": [
-                                "mkdir -p dist",
+                                "mkdir -p build",
                                 "npm install",
-                                "ng build --configuration $BUILD_ENV --build-optimizer --output-path=dist",
+                                "npm run build"
                             ]
                         },
                         "post_build": {
@@ -369,7 +370,7 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                         "files": [
                             "**/*"
                         ],
-                        "base-directory": "dist"
+                        "base-directory": "build"
                     }
                 }, sort_keys=True)
             },
@@ -382,12 +383,12 @@ def setup_codebuild_project(codebuild_project_name, bucket, object_name, s3_url_
                 "packaging": "NONE",
                 "encryptionDisabled": True
             },
-            "environment": remove_none_attributes({
+            "environment": {
                 "type": "LINUX_CONTAINER",
                 "image": "aws/codebuild/amazonlinux2-x86_64-standard:3.0",
                 "computeType": build_container_size,
                 "imagePullCredentialsType": "CODEBUILD"
-            }),
+            },
             "serviceRole": role_arn
         }
         print(f"params = {params}")
@@ -465,7 +466,7 @@ def remove_codebuild_project():
 @ext(handler=eh, op="start_build")
 def start_build(codebuild_project_name):
     codebuild = boto3.client('codebuild')
-    this_build_key = f"angularspabuilds/{random_id()}.json"
+    this_build_key = f"reactspabuilds/{random_id()}.json"
 
     try:
         response = codebuild.start_build(
@@ -619,7 +620,6 @@ def form_domain(bucket, base_domain):
 aws/codebuild/amazonlinux2-x86_64-standard:3.0	
 AMAZON LINUX 2 AVAILABILITY:
 version: 0.1
-
 runtimes:
   android:
     versions:
@@ -638,13 +638,9 @@ runtimes:
       corretto11:
         commands:
           - echo "Installing corretto(OpenJDK) version 11 ..."
-
           - export JAVA_HOME="$JAVA_11_HOME"
-
           - export JRE_HOME="$JRE_11_HOME"
-
           - export JDK_HOME="$JDK_11_HOME"
-
           - |-
             for tool_path in "$JAVA_HOME"/bin/*;
              do tool=`basename "$tool_path"`;
@@ -657,13 +653,9 @@ runtimes:
       corretto8:
         commands:
           - echo "Installing corretto(OpenJDK) version 8 ..."
-
           - export JAVA_HOME="$JAVA_8_HOME"
-
           - export JRE_HOME="$JRE_8_HOME"
-
           - export JDK_HOME="$JDK_8_HOME"
-
           - |-
             for tool_path in "$JAVA_8_HOME"/bin/* "$JRE_8_HOME"/bin/*;
              do tool=`basename "$tool_path"`;
@@ -747,4 +739,3 @@ runtimes:
 """
 
     
-
