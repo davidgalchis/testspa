@@ -66,17 +66,12 @@
                     "codebuild_runtime_versions": {
                         "type": "object",
                         "description": "The dictionary of runtime versions you need to build your app. If not set, this will default to {\"nodejs\": 10}. See a list of possible values here: https://docs.aws.amazon.com/codebuild/latest/userguide/runtime-versions.html",
-                        "default": {"nodejs": 12}
+                        "default": {"nodejs": 10}
                     },
                     "codebuild_install_commands": {
                         "type": "array",
                         "description": "Commands installing required libraries/packages before a build is run.",
                         "default": []
-                    },
-                    "codebuild_environment_variables": {
-                        "type": "object",
-                        "description": "The dictionary of environment variables you will need to run your build. If not set, this will default to {\"BUILD_ENV\": \"production\"}. This BUILD_ENV variable gets set to the --configuration flag when running \"ng build\"",
-                        "default": {"BUILD_ENV": "production"}
                     },
                     "build_container_size": {
                         "type": "string",
@@ -112,7 +107,7 @@
                     },
                     "config": {
                         "type": "object",
-                        "description": "Use this parameter to inject environment-variable like data into your angular app. Passing this parameter writes a file into the provided path containing the following function: export function get_config() {{return {json.dumps(data, indent=2)}}};",
+                        "description": "Use this parameter to inject environment-variable like data into your react app. Passing this parameter writes a file into the provided path with the following function: export function get_config() {{return {json.dumps(data, indent=2)}}};",
                         "properties": {
                             "path": {
                                 "type": "string",
